@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Regression Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        canvas {
+            max-width: 600px;
+            margin: auto;
+        }
+        input, button {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Interactive Linear Regression Visualization</h2>
+    
+    <!-- User Input Fields -->
+    <label>X values (comma separated) (max 10 values): <input type="text" id="x_values" value="1,2,3,4,5"></label><br>
+    <label>Y values (comma separated) (max 10 values): <input type="text" id="y_values" value="2,4,6,8,10"></label><br>
+    <label>Initial a: <input type="number" id="a" value="0"></label>
+    <label>Initial b: <input type="number" id="b" value="0"></label><br>
+    <label>Learning Rate: <input type="number" id="learning_rate" value="0.01" step="0.001"></label>
+    <label>Epochs (max 10 epochs): <input type="number" id="epochs" value="5" min="1" max="10"></label><br>
+    
+    <!-- Control Buttons -->
+    <button onclick="initializeRegression()">Start Regression</button>
+    <button onclick="prevEpoch()">Previous Epoch</button>
+    <button onclick="nextEpoch()">Next Epoch</button>
+    
+    <canvas id="regressionChart"></canvas>
+    <p id="info"></p>
+    <p id="error_message" style="color: red;"></p>
+    
+    <script>
+        let chart;
+        let x, y, a, b, lr, epochs;
+        let epochIndex = 0;
+        let history = [];
+        const MAX_INPUTS = 10; // Restrict maximum number of inputs for x and y
+
+        // Function to plot data and regression line
+        function plotData(epoch) {
+            let ctx = document.getElementById('regressionChart').getContext('2d');
+            if (chart) chart.destroy();
+            let data = history[epoch];
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Data Points',
+                            data: x.map((xi, i) => ({ x: xi, y: y[i] })),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: 'Regression Line',
+                            data: data.line,
+                            type: 'line',
+                            borderColor: 'red',
+                            borderWidth: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'X' } },
+                        y: { title: { display: true, text: 'Y' } }
+                    }
+                }
+            });
+            document.getElementById("info").innerText = `Epoch: ${epoch + 1}, a: ${data.a.toFixed(4)}, b: ${data.b.toFixed(4)}, Loss: ${data.loss.toFixed(4)}`;
+        }
+
+        // Function to initialize and compute linear regression step-by-step
+        function initializeRegression() {
+            let errorMessage = document.getElementById("error_message");
+            errorMessage.innerText = ""; // Clear previous errors
+
+            x = document.getElementById("x_values").value.split(",").map(Number);
+            y = document.getElementById("y_values").value.split(",").map(Number);
+            
+            // Check if x and y have the same number of inputs
+            if (x.length !== y.length) {
+                errorMessage.innerText = "Error: Number of X and Y values must be equal.";
+                return;
+            }
+
+            // Check if input count exceeds the limit
+            if (x.length > MAX_INPUTS) {
+                errorMessage.innerText = `Error: Maximum allowed input values are ${MAX_INPUTS}.`;
+                return;
+            }
+
+            a = parseFloat(document.getElementById("a").value);
+            b = parseFloat(document.getElementById("b").value);
+            lr = parseFloat(document.getElementById("learning_rate").value);
+            epochs = Math.min(10, parseInt(document.getElementById("epochs").value));
+            epochIndex = 0;
+            history = [];
+            
+            // Compute regression updates for all epochs in advance
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let da = 0, db = 0, loss = 0;
+                let n = x.length;
+                for (let i = 0; i < n; i++) {
+                    let y_pred = a * x[i] + b;
+                    let error = y_pred - y[i];
+                    da += (2 / n) * error * x[i];
+                    db += (2 / n) * error;
+                    loss += error * error;
+                }
+                a -= lr * da;
+                b -= lr * db;
+                loss /= n;
+                
+                let x_min = Math.min(...x), x_max = Math.max(...x);
+                let line = [{ x: x_min, y: a * x_min + b }, { x: x_max, y: a * x_max + b }];
+                history.push({ a, b, loss, line });
+            }
+            plotData(epochIndex);
+        }
+
+        // Function to move to previous epoch
+        function prevEpoch() {
+            if (epochIndex > 0) {
+                epochIndex--;
+                plotData(epochIndex);
+            }
+        }
+
+        // Function to move to next epoch
+        function nextEpoch() {
+            if (epochIndex < history.length - 1) {
+                epochIndex++;
+                plotData(epochIndex);
+            }
+        }
+    </script>
+</body>
+</html>
